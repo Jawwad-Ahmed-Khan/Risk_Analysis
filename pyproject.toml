@@ -2,7 +2,7 @@
 name = "climasync-risk-analysis-agent"
 version = "1.0.0"
 description = "ClimaSync Risk Analysis Agent"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 
 dependencies = [
     "fastapi",

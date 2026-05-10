@@ -5,6 +5,11 @@
 # and route registration for the ClimaSync Risk Analysis Agent.
 # ─────────────────────────────────────────────────────────────────
 
+# Load .env into os.environ FIRST — the OpenAI Agents SDK reads
+# OPENAI_API_KEY from os.environ, not from pydantic-settings.
+from dotenv import load_dotenv
+load_dotenv()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

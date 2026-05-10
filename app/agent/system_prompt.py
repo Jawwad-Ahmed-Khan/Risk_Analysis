@@ -37,7 +37,8 @@ Step 7: web search current ground situation
   - Query: "[district] [province] Pakistan [disaster_kind] 2025 news damage casualties roads blocked"
   - Look for real-time reports of damage, casualties, and infrastructure failures.
 Step 8: disaster-type specific searches
-  - Execute the four mandatory queries for your specific disaster kind (see Section 3).
+  - CRITICAL: You MUST execute the 4 mandatory queries for your specific disaster kind exactly as listed in Section 3.
+  - CRITICAL: You MUST store the results of these 4 specific queries in the `web_search_findings.disaster_specific_findings` list. DO NOT skip this.
 Step 9: compute all five dimension scores with full math shown
   - Calculate Hazard, Exposure, Vulnerability, Response Capability, and Escalation Potential.
 Step 10: compute composite, apply terrain, apply overrides
@@ -147,6 +148,7 @@ SECTION 8 — UNCERTAINTY RULES
 
 SECTION 9 — OUTPUT REQUIREMENTS
 - Produce a valid RiskAssessmentReport JSON object.
+- CRITICAL: Keep all text descriptions (like justifications and web search findings) EXTREMELY CONCISE so the JSON fits in the token limit.
 - 'critical_actions_needed' must contain at least 5 prioritized, actionable items.
 - 'data_gaps' must list any information that could not be found.
 - 'web_search_findings' must include the specific query used and key findings with source citations (e.g., "Dawn News", "NDMA Report").
