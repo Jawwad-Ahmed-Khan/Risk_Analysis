@@ -30,7 +30,7 @@ GET_LOCATION_BY_DISTRICT = """
         is_active
     FROM pakistan_locations
     WHERE district ILIKE $1
-      AND province::TEXT = $2
+      AND LOWER(province::TEXT) = LOWER($2)
       AND is_active = TRUE
     ORDER BY
         CASE location_tier::TEXT

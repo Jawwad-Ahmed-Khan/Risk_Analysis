@@ -5,7 +5,14 @@
 # and the output schema to create a specialized reasoning agent.
 # ─────────────────────────────────────────────────────────────────
 
-from agents import Agent, WebSearchTool, AgentOutputSchema
+from agents import (
+    Agent,
+    WebSearchTool,
+    AgentOutputSchema,
+    ModelSettings,
+    ModelRetrySettings,
+    retry_policies,
+)
 
 from app.agent.system_prompt import RISK_ANALYSIS_SYSTEM_PROMPT
 from app.agent.tools.location_tool import get_location_data
@@ -27,6 +34,7 @@ def create_risk_analysis_agent() -> Agent:
     - Custom tools for database lookups (locations, infrastructure, time-series data).
     - Built-in WebSearchTool for filling situational data gaps.
     - Structured output enforcement using the RiskAssessmentReport Pydantic model.
+    - Runner-managed retry with exponential backoff for 429 rate-limit resilience.
 
     Returns:
         Agent: A configured instance of the ClimaSync Risk Analysis Agent.
@@ -42,6 +50,23 @@ def create_risk_analysis_agent() -> Agent:
             WebSearchTool(),
         ],
         output_type=AgentOutputSchema(RiskAssessmentReport, strict_json_schema=False),
+        model_settings=ModelSettings(
+            retry=ModelRetrySettings(
+                max_retries=4,
+                backoff={
+                    "initial_delay": 2.0,
+                    "max_delay": 30.0,
+                    "multiplier": 2.0,
+                    "jitter": True,
+                },
+                policy=retry_policies.any(
+                    retry_policies.provider_suggested(),
+                    retry_policies.retry_after(),
+                    retry_policies.network_error(),
+                    retry_policies.http_status([408, 429, 500, 502, 503, 504]),
+                ),
+            )
+        ),
     )
 
     logger.info(

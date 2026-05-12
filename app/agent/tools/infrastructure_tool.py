@@ -99,30 +99,57 @@ async def get_infrastructure_at_risk(
         total_hospital_beds = sum(h.get("beds") or 0 for h in hospitals)
         
         schools = [a for a in all_assets if a.get("asset_type") == "school"]
+        bridges = [a for a in all_assets if a.get("asset_type") == "bridge"]
         total_school_students = sum(s.get("serves_population") or 0 for s in schools)
         
         total_evacuation_capacity = sum(e.get("shelter_capacity") or 0 for e in evacuation_centers)
         
-        critical_asset_names = [a.get("asset_name") for a in all_assets if a.get("is_critical")]
+        critical_assets = [a for a in all_assets if a.get("is_critical")]
+        critical_asset_names = [a.get("asset_name") for a in critical_assets]
+
+        # ── BUILD COMPACT SUMMARY ─────────────────────────────
+        # Only return aggregated counts + top 3 critical per
+        # category to stay within LLM context limits.
+
+        def _summarize(assets: list, top_n: int = 3) -> list:
+            """Return only name, type, capacity, distance for top N."""
+            return [
+                {
+                    "asset_name": a.get("asset_name"),
+                    "asset_type": a.get("asset_type"),
+                    "capacity": a.get("beds") or a.get("shelter_capacity") or a.get("capacity"),
+                    "is_critical": a.get("is_critical"),
+                    "distance_km": round(float(a.get("distance_km") or 0), 1),
+                }
+                for a in assets[:top_n]
+            ]
 
         result = {
             "impact_radius_km": radius_m / 1000,
             "total_assets_found": len(all_assets),
             "critical_assets_count": len(critical_asset_names),
-            "critical_asset_names": critical_asset_names,
-            "total_hospital_beds": total_hospital_beds,
-            "total_school_students": total_school_students,
-            "total_evacuation_capacity": total_evacuation_capacity,
-            "categories": {
-                "hospitals": hospitals,
-                "dams_and_barrages": dams_and_barrages,
-                "evacuation_centers": evacuation_centers,
-                "schools": schools,
-                "bridges": [a for a in all_assets if a.get("asset_type") == "bridge"]
-            }
+            "critical_asset_names": critical_asset_names[:10],
+            "summary": {
+                "hospitals_count": len(hospitals),
+                "hospital_beds_total": total_hospital_beds,
+                "schools_count": len(schools),
+                "school_students_total": total_school_students,
+                "bridges_count": len(bridges),
+                "dams_and_barrages_count": len(dams_and_barrages),
+                "evacuation_centers_count": len(evacuation_centers),
+                "evacuation_capacity_total": total_evacuation_capacity,
+            },
+            "top_hospitals": _summarize(hospitals),
+            "top_dams_barrages": _summarize(dams_and_barrages),
+            "top_evacuation_centers": _summarize(evacuation_centers),
+            "nearest_bridge": _summarize(bridges, top_n=1),
         }
 
-        logger.info(f"Infrastructure analysis complete for radius {radius_m/1000}km")
+        logger.info(
+            f"Infrastructure analysis complete for radius {radius_m/1000}km: "
+            f"{len(all_assets)} assets, {len(hospitals)} hospitals, "
+            f"{len(bridges)} bridges"
+        )
         return json.dumps(result, default=str)
 
     except Exception as e:
