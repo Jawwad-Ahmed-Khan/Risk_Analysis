@@ -92,9 +92,12 @@ if __name__ == "__main__":
     import uvicorn
     
     # Run the application using Uvicorn
+    # timeout_keep_alive=300 prevents the connection from being
+    # closed during long-running agent assessments (2-4 minutes).
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
         port=settings.app_port,
         reload=settings.app_env == "development",
+        timeout_keep_alive=300,
     )

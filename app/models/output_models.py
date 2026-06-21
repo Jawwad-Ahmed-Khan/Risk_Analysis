@@ -59,13 +59,20 @@ class HazardSeverityScore(BaseModel):
     justification: str
 
 
+class VulnerableGroups(BaseModel):
+    elderly_pct: Optional[float] = None
+    children_pct: Optional[float] = None
+    women_pct: Optional[float] = None
+    disabled_pct: Optional[float] = None
+    other_groups_description: Optional[str] = None
+
 class PopulationBreakdown(BaseModel):
     total_population: int
     population_source: str
     population_density_per_sqkm: Optional[float] = None
     estimated_directly_affected: Optional[int] = None
     estimation_method: str = "estimate"
-    vulnerable_groups: Dict[str, Any] = {}
+    vulnerable_groups: Optional[VulnerableGroups] = None
     poverty_rate_pct: Optional[float] = None
     poverty_source: Optional[str] = "default"
     outdoor_workers_estimate: Optional[int] = None
@@ -102,6 +109,13 @@ class ExposureScore(BaseModel):
     justification: str
 
 
+class VulnerabilityComponentScores(BaseModel):
+    building: Optional[float] = None
+    drainage: Optional[float] = None
+    infrastructure: Optional[float] = None
+    poverty: Optional[float] = None
+    terrain: Optional[float] = None
+
 class VulnerabilityScore(BaseModel):
     score: Optional[float] = Field(None, ge=0, le=200)
     building_vulnerability_score: Optional[float] = None
@@ -113,7 +127,7 @@ class VulnerabilityScore(BaseModel):
     infrastructure_quality_score: Optional[float] = None
     poverty_vulnerability_score: Optional[float] = None
     terrain_vulnerability_score: Optional[float] = Field(None, ge=0, le=200)
-    component_scores: Optional[Dict[str, float]] = {}
+    component_scores: Optional[VulnerabilityComponentScores] = None
     justification: str
 
 
@@ -175,6 +189,13 @@ class ImpactEstimates(BaseModel):
 
 # ── MAIN REPORT ───────────────────────────────────────────────────
 
+class ScoreBreakdown(BaseModel):
+    hazard: Optional[float] = None
+    exposure: Optional[float] = None
+    vulnerability: Optional[float] = None
+    escalation: Optional[float] = None
+    response: Optional[float] = None
+
 class RiskAssessmentReport(BaseModel):
     assessment_id: str
     breach_id: str
@@ -198,7 +219,7 @@ class RiskAssessmentReport(BaseModel):
     escalation_risk: EscalationScore
     response_capacity: ResponseCapacityScore
     
-    score_breakdown: Dict[str, float]
+    score_breakdown: ScoreBreakdown
     composite_score_before_terrain: Optional[float] = None
     terrain_multiplier_applied: Optional[float] = None
     composite_risk_score: Optional[float] = None

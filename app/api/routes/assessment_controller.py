@@ -2,7 +2,8 @@
 # ─────────────────────────────────────────────────────────────────
 # Assessment controller for triggering risk analysis.
 # Orchestrates the interaction between the main system payload
-# and the reasoning agent.
+# and the reasoning agent. Includes retry logic for transient
+# LLM failures (malformed JSON, model behavior errors).
 # ─────────────────────────────────────────────────────────────────
 
 import uuid
@@ -21,6 +22,9 @@ from app.core.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["Assessment"])
+
+# ── Maximum attempts for the full agent run ───────────────────────
+MAX_AGENT_RETRIES = 3
 
 
 def verify_api_key(x_api_key: str = Header(None)) -> None:
@@ -44,6 +48,8 @@ async def trigger_assessment(
 ) -> RiskAssessmentReport:
     """
     Main endpoint to initiate a risk assessment for a disaster event.
+    Retries up to MAX_AGENT_RETRIES times if the LLM produces
+    malformed JSON or hits a transient error.
     """
     assessment_id = str(uuid.uuid4())
     
@@ -56,28 +62,56 @@ async def trigger_assessment(
     # Prepare the comprehensive input for the agent
     agent_input = _build_agent_input(payload, assessment_id)
     
-    try:
-        # Execute the agent workflow
-        # Position 1: agent, Position 2: input string
-        result = await Runner.run(
-            risk_agent,
-            agent_input,
-            max_turns=settings.openai_max_turns
-        )
-        
-        # Extract the structured output enforced by the agent's output_type
-        report: RiskAssessmentReport = result.final_output
-        
-        logger.info(
-            f"Assessment completed successfully. assessment_id={assessment_id} | "
-            f"risk_level={report.risk_level} | composite_score={report.composite_risk_score}"
-        )
-        
-        return report
+    last_error = None
+    for attempt in range(1, MAX_AGENT_RETRIES + 1):
+        try:
+            logger.info(
+                f"Agent run attempt {attempt}/{MAX_AGENT_RETRIES} "
+                f"for assessment_id={assessment_id}"
+            )
+            
+            # Execute the agent workflow
+            result = await Runner.run(
+                risk_agent,
+                agent_input,
+                max_turns=settings.openai_max_turns,
+            )
+            
+            # Extract the structured output enforced by the agent's output_type
+            report: RiskAssessmentReport = result.final_output
+            
+            logger.info(
+                f"Assessment completed successfully. assessment_id={assessment_id} | "
+                f"risk_level={report.risk_level} | composite_score={report.composite_risk_score} | "
+                f"attempt={attempt}"
+            )
+            
+            return report
 
-    except Exception as e:
-        logger.error(f"Agent execution failed for assessment_id={assessment_id}: {str(e)}")
-        raise http_agent_error(str(e))
+        except Exception as e:
+            last_error = e
+            error_type = type(e).__name__
+            logger.warning(
+                f"Agent attempt {attempt}/{MAX_AGENT_RETRIES} failed "
+                f"for assessment_id={assessment_id}: "
+                f"[{error_type}] {str(e)[:500]}"
+            )
+            
+            # Don't retry on auth or validation errors — only on
+            # model/network issues (ModelBehaviorError, JSON parse, timeouts)
+            if isinstance(e, HTTPException):
+                raise
+            
+            if attempt == MAX_AGENT_RETRIES:
+                logger.error(
+                    f"All {MAX_AGENT_RETRIES} agent attempts failed "
+                    f"for assessment_id={assessment_id}: {str(last_error)}"
+                )
+                raise http_agent_error(str(last_error))
+            
+            # Brief pause before retry
+            import asyncio
+            await asyncio.sleep(2 * attempt)
 
 
 def _build_agent_input(payload: BreachPayload, assessment_id: str) -> str:
@@ -118,6 +152,7 @@ def _build_agent_input(payload: BreachPayload, assessment_id: str) -> str:
         "1. You MUST follow your 11-step execution workflow exactly.",
         f"2. You MUST use assessment_id='{assessment_id}' in your final output.",
         "3. Provide a data-driven, defensible risk score for the specified disaster kind.",
+        "4. Your final output MUST be a single valid JSON object matching the RiskAssessmentReport schema. Do NOT wrap it in markdown code fences.",
         "--- START ANALYSIS ---"
     ]
     

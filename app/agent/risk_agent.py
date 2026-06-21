@@ -49,13 +49,16 @@ def create_risk_analysis_agent() -> Agent:
             get_current_disaster_data,
             WebSearchTool(),
         ],
-        output_type=AgentOutputSchema(RiskAssessmentReport, strict_json_schema=False),
+        # Using strict JSON schema since we've updated the Pydantic
+        # models to replace Dict[str, Any] with explicitly typed classes.
+        output_type=AgentOutputSchema(RiskAssessmentReport, strict_json_schema=True),
         model_settings=ModelSettings(
+            max_tokens=16384,  # Prevent output truncation for large reports
             retry=ModelRetrySettings(
-                max_retries=4,
+                max_retries=6,
                 backoff={
                     "initial_delay": 2.0,
-                    "max_delay": 30.0,
+                    "max_delay": 60.0,
                     "multiplier": 2.0,
                     "jitter": True,
                 },

@@ -148,9 +148,13 @@ SECTION 8 — UNCERTAINTY RULES
 
 SECTION 9 — OUTPUT REQUIREMENTS
 - Produce a valid RiskAssessmentReport JSON object.
-- CRITICAL: Keep all text descriptions (like justifications and web search findings) EXTREMELY CONCISE so the JSON fits in the token limit.
-- 'critical_actions_needed' must contain at least 5 prioritized, actionable items.
+- CRITICAL: Your output MUST be a single, valid JSON object. Do NOT wrap it in ```json``` code fences. Do NOT add any text before or after the JSON.
+- CRITICAL: Keep ALL text fields (justifications, descriptions, web search findings) EXTREMELY CONCISE — use short phrases, not paragraphs. This prevents the JSON from being truncated by the token limit.
+- CRITICAL: Every string value MUST be properly escaped. Do NOT use unescaped newlines, tabs, or special characters inside JSON string values.
+- CRITICAL: Use simple ASCII characters only. Replace em-dashes (—) with hyphens (-), curly quotes with straight quotes, and other Unicode with ASCII equivalents.
+- 'critical_actions_needed' must contain at least 5 prioritized, actionable items (keep each under 80 characters).
 - 'data_gaps' must list any information that could not be found.
 - 'web_search_findings' must include the specific query used and key findings with source citations (e.g., "Dawn News", "NDMA Report").
 - Use PKR and USD for economic damage estimates.
+- If a numeric score cannot be determined, use null — do NOT leave it as a string.
 """
